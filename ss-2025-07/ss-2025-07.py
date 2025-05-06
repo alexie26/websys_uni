@@ -75,6 +75,54 @@ def alexandra():
     cursor.close()
     return render_template('alexandra.html', data=data)
 
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+
+        cursor = g.con.cursor(dictionary=True)
+        cursor.execute("SELECT * FROM users WHERE username = %s", (username,))
+        user = cursor.fetchone()
+        cursor.close()
+ if user and check_password_hash(user['password'], password):
+            session['user_id'] = user['id']
+            session['username'] = user['username']
+            flash('Login successful!', 'success')
+            return redirect(url_for('startseite'))
+        else:
+            flash('Invalid username or password.', 'error')
+            return redirect(url_for('login'))
+
+    return render_template('login.html')
+
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = generate_password_hash(request.form['password'])
+
+        cursor = g.con.cursor()
+        try:
+            cursor.execute("INSERT INTO users (username, password) VALUES (%s, %s)", (username, password))
+            g.con.commit()
+            flash("Registration successful! Please login.", "success")
+            return redirect(url_for('login'))
+        except mysql.connector.IntegrityError:
+            flash("Username already exists.", "error")
+            return redirect(url_for('register'))
+        finally:
+            cursor.close()
+
+    return render_template('register.html')
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    flash('Logged out successfully.', 'info')
+    return redirect(url_for('login'))
+
 
 # Start der Flask-Anwendung
 if __name__ == '__main__':
